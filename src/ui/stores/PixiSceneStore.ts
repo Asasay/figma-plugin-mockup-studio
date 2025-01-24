@@ -1,7 +1,7 @@
+import { complementryHexColor } from "@ui/utils/colorUtils";
+import { maskFromSVG, transformCoordsFromSvg } from "@ui/utils/svgUtils";
 import { IReactionDisposer, makeAutoObservable, reaction } from "mobx";
-import { Container, Sprite, Texture, PerspectiveMesh, Graphics } from "pixi.js";
-import { transformCoordsFromSvg, maskFromSVG } from "./svgUtils";
-
+import { Container, Graphics, PerspectiveMesh, Sprite, Texture } from "pixi.js";
 import type { RootStore } from "./RootStore";
 
 export default class PixiSceneStore {
@@ -152,6 +152,7 @@ export default class PixiSceneStore {
 
   private createUI() {
     const colors = this.rootStore.mockupStore.colorVariants;
+    const selectedColor = this.rootStore.mockupStore.selectedColor;
     const colorSelectorFrame: Container<Graphics> = new Container({
       label: "Color picker",
       isRenderGroup: true,
@@ -164,22 +165,30 @@ export default class PixiSceneStore {
       .roundRect(0, 0, 24 + 20 * colors.length, 28, 27)
       .fill("#000000");
 
-    colors.map((color, i) => {
+    const selectors = colors.map((color, i) => {
       const circle = new Graphics({ eventMode: "static", label: color, parent: colorSelectorFrame })
         .circle(0, 0, 6)
         .fill(color);
       circle.position = { x: 22 + i * 20, y: 14 };
-      if (color === this.rootStore.mockupStore.selectedColor?.hex) {
-        const selectionOutline = new Graphics({ parent: colorSelectorFrame, label: "Selection" })
-          .circle(0, 0, 6)
-          .stroke({ pixelLine: true });
-        selectionOutline.position = circle.position;
-      }
+      return circle;
     });
+
+    const selectionOutline = new Graphics({ parent: colorSelectorFrame, label: "Selection" })
+      .circle(0, 0, 6)
+      .stroke({
+        color: complementryHexColor(selectedColor?.hex ?? "#000000"),
+        width: 2,
+      });
+    selectionOutline.position = selectors[0].position;
+
     colorSelectorFrame.on("pointertap", ({ target }) => {
       if (target.label === "bg" || target.label === "Color picker") return;
       this.rootStore.mockupStore.setSelectedColor(target.label);
-      colorSelectorFrame.getChildByLabel("Selection")!.position = target.position;
+      selectionOutline.position = target.position;
+      selectionOutline
+        .clear()
+        .circle(0, 0, 6)
+        .stroke({ color: complementryHexColor(target.label), width: 2 });
     });
     this.positionUI(colorSelectorFrame);
     return colorSelectorFrame;
